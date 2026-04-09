@@ -1,0 +1,66 @@
+# ═══════════════════════════════════════════
+# Android
+# ═══════════════════════════════════════════
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+release/
+
+# Gradle
+.gradle/
+build/
+gradle-wrapper.jar
+
+# Local config — MAI in repo
+local.properties
+keystore.properties
+*.jks
+*.keystore
+
+# ═══════════════════════════════════════════
+# Android Studio / IntelliJ
+# ═══════════════════════════════════════════
+.idea/
+*.iml
+*.iws
+*.ipr
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Navigation editor temp
+app/src/main/res/navigation/
+
+# ═══════════════════════════════════════════
+# Kotlin
+# ═══════════════════════════════════════════
+*.kotlin_module
+
+# ═══════════════════════════════════════════
+# Lint
+# ═══════════════════════════════════════════
+lint/
+*.xml.bak
+
+# ═══════════════════════════════════════════
+# Secrets — CRITICO per questo progetto
+# Non committare mai URL endpoint Apps Script
+# ═══════════════════════════════════════════
+secrets.properties
+config.local.properties
+
+# ═══════════════════════════════════════════
+# OS
+# ═══════════════════════════════════════════
+.DS_Store
+Thumbs.db
+desktop.ini/build
+

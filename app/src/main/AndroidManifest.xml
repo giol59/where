@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ═══════════════════════════════════════════
+         PERMESSI GPS
+    ═══════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Background location: richiede "Consenti sempre" nelle impostazioni -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- ═══════════════════════════════════════════
+         PERMESSI SISTEMA
+    ═══════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Tipo specifico per Android 14+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Per chiedere all'utente di escludere l'app dalla battery optimization -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Rete -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:label="where"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.DeviceDefault">
+
+        <!-- ═══════════════════════════════════════════
+             ACTIVITY PRINCIPALE — solo per proto-app
+             In produzione: questa Activity non esisterà
+        ═══════════════════════════════════════════ -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:excludeFromRecents="false">
+            <!-- In proto-app l'icona è visibile per comodità di sviluppo -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ═══════════════════════════════════════════
+             FOREGROUND SERVICE — tracker GPS attivo
+             In produzione: sarà sostituito da PendingIntent system-managed
+        ═══════════════════════════════════════════ -->
+        <service
+            android:name=".tracker.LocationForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <!-- ═══════════════════════════════════════════
+             BOOT RECEIVER — autostart al riavvio
+             In proto-app non ancora attivo, manifest ready
+        ═══════════════════════════════════════════ -->
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ═══════════════════════════════════════════
+             LOCATION RECEIVER — riceve gli update GPS via PendingIntent
+             In proto-app non ancora usato, manifest ready
+        ═══════════════════════════════════════════ -->
+        <receiver
+            android:name=".receiver.LocationReceiver"
+            android:exported="false" />
+
+    </application>
+
+</manifest>
