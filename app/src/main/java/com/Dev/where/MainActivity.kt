@@ -1,5 +1,6 @@
 package com.dev.where
 
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -28,8 +29,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.dev.where.tracker.LocationForegroundService
+import com.dev.where.receiver.LocationReceiver
+import com.dev.where.receiver.registerLocationUpdates
 import com.dev.where.util.PermissionHelper
+import com.google.android.gms.location.LocationServices
 
 // ─── Colori debug UI ──────────────────────────────────────────────────────────
 private val ColorOk      = Color(0xFF4CAF50)
@@ -45,20 +48,16 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
 
-    // ─── BroadcastReceiver per aggiornamenti GPS dal Service ─────────────────
+    // ─── BroadcastReceiver per aggiornamenti GPS dal LocationReceiver ─────────
     private val locationReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when {
-                intent.hasExtra(LocationForegroundService.EXTRA_LAT) -> {
-                    val lat      = intent.getDoubleExtra(LocationForegroundService.EXTRA_LAT, 0.0)
-                    val lng      = intent.getDoubleExtra(LocationForegroundService.EXTRA_LNG, 0.0)
-                    val accuracy = intent.getFloatExtra(LocationForegroundService.EXTRA_ACCURACY, 0f)
-                    val time     = intent.getLongExtra(LocationForegroundService.EXTRA_TIME, System.currentTimeMillis())
+                intent.hasExtra("lat") -> {
+                    val lat      = intent.getDoubleExtra("lat", 0.0)
+                    val lng      = intent.getDoubleExtra("lng", 0.0)
+                    val accuracy = intent.getFloatExtra("accuracy", 0f)
+                    val time     = intent.getLongExtra("time", System.currentTimeMillis())
                     viewModel.onLocationReceived(lat, lng, accuracy, time)
-                }
-                intent.hasExtra(LocationForegroundService.EXTRA_AVAILABLE) -> {
-                    val available = intent.getBooleanExtra(LocationForegroundService.EXTRA_AVAILABLE, false)
-                    viewModel.onGpsAvailabilityChanged(available)
                 }
             }
         }
@@ -67,11 +66,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Registra receiver per broadcast GPS
-        val filter = IntentFilter(LocationForegroundService.ACTION_LOCATION_UPDATE)
+        // Registra receiver per broadcast GPS dal LocationReceiver
+        val filter = IntentFilter("com.dev.where.LOCATION_UPDATE")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(locationReceiver, filter, RECEIVER_EXPORTED)
-        } else {
+            registerReceiver(locationReceiver, filter, RECEIVER_NOT_EXPORTED)
+        }else {
             registerReceiver(locationReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         }
 
@@ -93,7 +92,6 @@ fun WhereProtoApp(viewModel: MainViewModel) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // A — corretto
     val hasFineLocation  = PermissionHelper.hasFineLocation(context)
     val hasBackgroundLoc = PermissionHelper.hasBackgroundLocation(context)
     val hasBatteryOptOff = PermissionHelper.isBatteryOptimizationIgnored(context)
@@ -120,7 +118,7 @@ fun WhereProtoApp(viewModel: MainViewModel) {
                 fontFamily = FontFamily.Monospace
             )
             Text(
-                text = "proto-app v0.1.0 — STEP 2",
+                text = "proto-app v0.1.0 — STEP 6",
                 color = ColorMuted,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace
@@ -130,22 +128,19 @@ fun WhereProtoApp(viewModel: MainViewModel) {
 
             // ── Permessi ──────────────────────────────────────────────────────
             SectionHeader("PERMESSI")
-            PermissionRow("ACCESS_FINE_LOCATION",      hasFineLocation)
+            PermissionRow("ACCESS_FINE_LOCATION",       hasFineLocation)
             PermissionRow("ACCESS_BACKGROUND_LOCATION", hasBackgroundLoc)
             PermissionRow("Battery Optimization OFF",   hasBatteryOptOff)
 
             HorizontalDivider(color = ColorSurface)
 
             // ── Controllo tracker ─────────────────────────────────────────────
-            SectionHeader("TRACKER")
+            SectionHeader("TRACKER — PendingIntent")
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
-                        val intent = Intent(context, LocationForegroundService::class.java).apply {
-                            action = LocationForegroundService.ACTION_START
-                        }
-                        context.startForegroundService(intent)
+                        registerLocationUpdates(context)
                         viewModel.onTrackingStarted()
                     },
                     enabled = allPermissionsReady && !uiState.isTracking,
@@ -156,10 +151,13 @@ fun WhereProtoApp(viewModel: MainViewModel) {
 
                 Button(
                     onClick = {
-                        val intent = Intent(context, LocationForegroundService::class.java).apply {
-                            action = LocationForegroundService.ACTION_STOP
-                        }
-                        context.startService(intent)
+                        val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+                        val intent = Intent(context, LocationReceiver::class.java)
+                        val pendingIntent = PendingIntent.getBroadcast(
+                            context, 0, intent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                        fusedClient.removeLocationUpdates(pendingIntent)
                         viewModel.onTrackingStopped()
                     },
                     enabled = uiState.isTracking,
@@ -215,9 +213,9 @@ fun WhereProtoApp(viewModel: MainViewModel) {
 
             HorizontalDivider(color = ColorSurface)
 
-            // ── Send placeholder ──────────────────────────────────────────────
+            // ── Send status ───────────────────────────────────────────────────
             SectionHeader("SEND → GOOGLE SHEETS")
-            PlaceholderCard("OkHttp POST → Apps Script\nImplementato in STEP 4")
+            PlaceholderCard("OkHttp POST → Apps Script\nPendingIntent system-managed")
 
             Spacer(modifier = Modifier.height(32.dp))
         }
