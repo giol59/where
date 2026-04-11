@@ -8,7 +8,11 @@ import android.content.Intent
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import com.dev.where.db.WhereDatabase
 import com.google.android.gms.location.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class LocationForegroundService : Service() {
 
@@ -33,6 +37,7 @@ class LocationForegroundService : Service() {
 
     private lateinit var fusedClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -65,6 +70,9 @@ class LocationForegroundService : Service() {
     private fun startTracking() {
         Log.d(TAG, "startTracking()")
         startForeground(NOTIF_ID, buildNotification())
+
+        // Retry punti pending al riavvio del tracker
+        SheetsSender.retrySend(applicationContext)
 
         val request = LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY,
@@ -109,9 +117,16 @@ class LocationForegroundService : Service() {
                     putExtra(EXTRA_TIME,     location.time)
                 }
                 sendBroadcast(broadcast)
-                SheetsSender.send(location.latitude, location.longitude, location.accuracy, location.time)
-            }
 
+                // Salva su Room e tenta invio
+                SheetsSender.saveAndSend(
+                    applicationContext,
+                    location.latitude,
+                    location.longitude,
+                    location.accuracy,
+                    location.time
+                )
+            }
 
             override fun onLocationAvailability(availability: LocationAvailability) {
                 Log.d(TAG, "GPS disponibile: ${availability.isLocationAvailable}")
