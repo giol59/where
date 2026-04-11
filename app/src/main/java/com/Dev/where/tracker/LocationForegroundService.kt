@@ -109,7 +109,9 @@ class LocationForegroundService : Service() {
                     putExtra(EXTRA_TIME,     location.time)
                 }
                 sendBroadcast(broadcast)
+                SheetsSender.send(location.latitude, location.longitude, location.accuracy, location.time)
             }
+
 
             override fun onLocationAvailability(availability: LocationAvailability) {
                 Log.d(TAG, "GPS disponibile: ${availability.isLocationAvailable}")
