@@ -1,6 +1,6 @@
 # WHERE — Knowledge Document
-**Aggiornato**: 2026-04-09
-**Versione corrente**: proto-app v0.1.0 — STEP 2 completato
+**Aggiornato**: 2026-04-12
+**Versione corrente**: 1.0.0 — STEP 7 completato — tracker silente funzionante
 
 ---
 
@@ -16,7 +16,7 @@
 | minSdk | 26 (Android 8 Oreo) |
 | targetSdk | 35 |
 | compileSdk | 35 |
-| versionName | `0.1.0-proto` |
+| versionName | `1.0.0` |
 | Linguaggio | Kotlin |
 | Build system | Kotlin DSL (`.gradle.kts`) |
 | IDE | Android Studio |
@@ -25,83 +25,69 @@
 
 ## Architettura del sistema — visione completa
 
-Il sistema è composto da **due app separate** con Google nel mezzo come storage/relay:
-
 ```
 [DEVICE A — Tracker]              [GOOGLE]                  [DEVICE B — Viewer]
 App "where" background   →   Apps Script doPost   →   Google Sheets
-                         ←   Apps Script doGet    ←   App viewer (o browser)
+                         ←   Apps Script doGet    ←   App "where-viewer" (futuro)
 ```
 
-**Google Apps Script** gestisce entrambi i versi: riceve POST dal tracker, serve GET al viewer. Google Sheets è il database. Zero server proprio.
+**Google Apps Script** gestisce entrambi i versi. Google Sheets è il database. Zero server proprio.
 
 ---
 
-## App Tracker — architettura componenti (produzione finale)
+## Architettura componenti — produzione finale
 
 ```
-BOOT_COMPLETED
+Installazione APK
       ↓
-BootReceiver (BroadcastReceiver)
+WhereApplication.onCreate()
       ↓
-Registra LocationRequest su FusedLocationProviderClient
+registerLocationUpdates() → FusedLocationProviderClient
       ↓
 PendingIntent → LocationReceiver
-      ↓ [scatta su spostamento >100m OPPURE timer >15min]
-LocationReceiver
+      ↓ [scatta su spostamento o timer]
+LocationReceiver.onReceive()
       ↓                    ↓
-Room DB (cache)      Sender/Dispatcher
-                           ↓
-                   OkHttp POST → Apps Script
-```
+Room DB (cache)      SheetsSender
+(sent=false)               ↓
+                   OkHttp POST → Apps Script → Google Sheets
 
-**Trigger invio** — vince chi scatta prima:
-1. Spostamento > 100 metri (`smallestDisplacement = 100f`)
-2. Intervallo temporale configurabile (default 15 minuti)
+BOOT_COMPLETED / LOCKED_BOOT_COMPLETED
+      ↓
+BootReceiver.onReceive()
+      ↓
+registerLocationUpdates() → ciclo riparte
+```
 
 ---
 
-## Proto-app vs Produzione — differenze
+## Ciclo di vita app — comportamento confermato su device reale (Oppo ColorOS)
 
-La proto-app (stato attuale) è un trampolino di sviluppo e test. Ha componenti temporanei che verranno rimossi.
+| Evento | Comportamento |
+|---|---|
+| Installazione APK | `WhereApplication.onCreate()` → tracker attivo subito |
+| Schermo spento | ✅ Continua a funzionare |
+| Kill da lista recenti (swipe) | ✅ Continua a funzionare |
+| Riavvio telefono | ✅ `BootReceiver` riregistra PendingIntent (~4 min su Oppo) |
+| Forza arresto (Impostazioni → App → where → Arresta) | ❌ Si ferma — riparte solo al prossimo riavvio |
 
-| Componente | Proto-app (ora) | Produzione (finale) |
-|---|---|---|
-| UI | Compose debug UI | Nessuna |
-| Icona launcher | Visibile | Nascosta (rimuovere MAIN/LAUNCHER) |
-| App recenti | Visibile | Nascosta (`excludeFromRecents="true"`) |
-| Location delivery | ForegroundService + callback | PendingIntent system-managed |
-| Notifica | Obbligatoria (ForegroundService) | Nessuna |
-| BootReceiver | Stub vuoto | Implementato |
-| LocationReceiver | Stub vuoto | Implementato |
-| Room DB | Non presente | Presente |
+**Forza arresto** è l'unico modo per fermare il tracker. L'utente può farlo da Impostazioni → App → where → Arresta.
 
 ---
 
 ## Stack tecnologico — dipendenze attuali
 
 ```kotlin
-// Compose
-implementation(platform("androidx.compose:compose-bom:2024.12.01"))
-implementation("androidx.compose.ui:ui")
-implementation("androidx.compose.material3:material3")
-
-// Lifecycle
-implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-implementation("androidx.activity:activity-compose:1.9.3")
-
-// GPS
+implementation("androidx.core:core-ktx:1.15.0")
 implementation("com.google.android.gms:play-services-location:21.3.0")
-
-// HTTP
 implementation("com.squareup.okhttp3:okhttp:4.12.0")
-
-// Coroutines
 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+implementation("androidx.room:room-runtime:2.6.1")
+implementation("androidx.room:room-ktx:2.6.1")
+kapt("androidx.room:room-compiler:2.6.1")
 ```
 
-**Da aggiungere in step futuri**: Room DB, WorkManager
+**Rimosso**: Compose, Activity, ViewModel, lifecycle-compose
 
 ---
 
@@ -109,44 +95,73 @@ implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
 ```
 app/src/main/java/com/Dev/where/
-├── MainActivity.kt                  ← UI debug Compose + BroadcastReceiver GPS
-├── MainViewModel.kt                 ← stato UI, log GPS, contatori
-├── Util/
-│   └── PermissionHelper.kt         ← check permessi centralizzato
+├── WhereApplication.kt              ← Application class, avvio tracker
+├── StartupActivity.kt               ← Activity minimale Theme.NoDisplay (da rimuovere STEP 8)
+├── db/
+│   ├── GpsPoint.kt                  ← Entity Room
+│   ├── GpsPointDao.kt               ← DAO Room
+│   └── WhereDatabase.kt             ← Database singleton
 ├── receiver/
-│   └── Receivers.kt                ← BootReceiver + LocationReceiver (stub)
+│   └── Receivers.kt                 ← BootReceiver + LocationReceiver + registerLocationUpdates()
 ├── tracker/
-│   └── LocationForegroundService.kt ← ForegroundService GPS (temporaneo)
-└── ui/theme/
-    └── ...                          ← tema default Android Studio
+│   └── SheetsSender.kt              ← OkHttp POST + Room cache + retry
+└── Util/
+    └── PermissionHelper.kt          ← check permessi (usato solo in fase setup)
 ```
 
 ---
 
 ## Componenti implementati
 
-### LocationForegroundService (temporaneo — STEP 2)
-- ForegroundService con notifica obbligatoria
-- `FusedLocationProviderClient` con `LocationCallback` diretto
-- Intervallo: 5 secondi (test), minInterval: 2 secondi
-- Priority: `PRIORITY_HIGH_ACCURACY`
-- Broadcast verso MainActivity via `ACTION_LOCATION_UPDATE`
-- Extras broadcast: `lat`, `lng`, `accuracy`, `time`, `available`
+### WhereApplication
+- Estende `Application`
+- `onCreate()` chiama `registerLocationUpdates(this)`
+- Punto di avvio dell'intera catena GPS
 
-### MainViewModel
-- `WhereUiState`: `isTracking`, `gpsAvailable`, `lastPoint`, `log`
-- `GpsPoint`: `lat`, `lng`, `accuracy`, `timestamp`, `count`
-- Log circolare ultimi 20 eventi
-- Contatore punti ricevuti per sessione
+### StartupActivity (temporanea — da rimuovere STEP 8)
+- `Theme.NoDisplay` — nessuna UI visibile
+- `onCreate()` chiama `registerLocationUpdates` + `finish()`
+- Ha intent-filter MAIN/LAUNCHER → icona visibile nel launcher
+- Da eliminare quando si rimuove l'icona
 
-### PermissionHelper
-- `hasFineLocation()`, `hasBackgroundLocation()`, `isBatteryOptimizationIgnored()`
-- `buildBatteryOptimizationIntent()` → apre impostazioni dirette
-- `buildAppSettingsIntent()` → fallback impostazioni app
+### BootReceiver
+- Riceve `BOOT_COMPLETED` e `LOCKED_BOOT_COMPLETED`
+- Chiama `registerLocationUpdates(context)`
+- `android:exported="true"` obbligatorio
 
-### Receivers (stub — STEP 6)
-- `BootReceiver` — dichiarato nel manifest, corpo vuoto
-- `LocationReceiver` — dichiarato nel manifest, corpo vuoto
+### LocationReceiver
+- Riceve fix GPS via PendingIntent da FusedLocationProvider
+- Estrae `LocationResult.extractResult(intent)`
+- Chiama `SheetsSender.saveAndSend()`
+- `android:exported="false"`
+
+### registerLocationUpdates()
+- `LocationRequest`: `PRIORITY_HIGH_ACCURACY`, interval 5s (da portare a 15min — STEP 9)
+- `PendingIntent.FLAG_MUTABLE` — obbligatorio per FusedLocationProvider
+- `.addOnSuccessListener` / `.addOnFailureListener` per log
+
+### SheetsSender
+- `saveAndSend()`: salva su Room (sent=false) + tenta invio immediato
+- `retrySend()`: invia tutti i punti pending su Room
+- `sendPoint()`: OkHttp POST asincrono, marca `sent=true` su successo
+- Endpoint hardcoded (da spostare in `secrets.properties` — STEP 11)
+- DeviceId hardcoded `"where_device_01"` (da rendere configurabile — STEP 12)
+
+### GpsPoint (Room Entity)
+- campi: `id`, `lat`, `lng`, `accuracy`, `timestamp`, `sent`
+- `sent=false` → pending, `sent=true` → inviato
+
+### GpsPointDao
+- `insert()`, `getPending()`, `markSent()`, `deleteSent()`
+
+---
+
+## Backend — Google Apps Script
+
+- **doPost**: riceve `{lat, lng, accuracy, timestamp, deviceId}` → appende riga su Sheet
+- **Sheet**: `where_tracker` — colonne: timestamp, deviceId, lat, lng, accuracy
+- **Deploy**: Web App pubblica, esegui come utente proprietario
+- URL endpoint: attualmente hardcoded in `SheetsSender.kt` (da spostare — STEP 11)
 
 ---
 
@@ -157,24 +172,21 @@ app/src/main/java/com/Dev/where/
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
 <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
 <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 <uses-permission android:name="android.permission.INTERNET"/>
 ```
 
 ---
 
-## Visibilità app — produzione finale
+## Visibilità app — stato attuale
 
-| Punto di visibilità | Stato | Metodo |
-|---|---|---|
-| Icona launcher | Nascosta | Rimuovere `MAIN/LAUNCHER` dal manifest |
-| App recenti | Nascosta | `android:excludeFromRecents="true"` |
-| Notifiche | Nessuna | — |
-| Elenco app (Impostazioni) | Visibile — non eliminabile | — |
-| Permessi posizione | Visibile — non eliminabile | — |
-| Gestore autostart OEM | Visibile — non eliminabile | — |
+| Punto di visibilità | Stato |
+|---|---|
+| Icona launcher | ⚠️ Visibile (da rimuovere STEP 8) |
+| App recenti | Non appare (nessuna Activity aperta) |
+| Notifiche | Nessuna ✅ |
+| Elenco app (Impostazioni) | Visibile — non eliminabile |
+| Permessi posizione | Visibile — non eliminabile |
 
 ---
 
@@ -182,20 +194,11 @@ app/src/main/java/com/Dev/where/
 
 | Versione | Note critiche |
 |---|---|
-| 8 (Oreo) — minSdk | Background service puro non utilizzabile → PendingIntent corretto |
+| 8 (Oreo) — minSdk | PendingIntent system-managed corretto |
 | 10+ | `ACCESS_BACKGROUND_LOCATION` separata, richiede "Consenti sempre" |
-| 12+ | Indicatore GPS status bar — NON scatta con PendingIntent system-managed ✓ |
-| 13 (TIRAMISU) | `registerReceiver` richiede flag `RECEIVER_EXPORTED` / `RECEIVER_NOT_EXPORTED` |
-| 14+ | `foregroundServiceType="location"` obbligatorio per ForegroundService — non applicabile in produzione |
-
----
-
-## Configurazione manuale dispositivo (una tantum — non bypassabile)
-
-1. **Battery optimization OFF**: Impostazioni → App → where → Batteria → "Non ottimizzare"
-   - Critico su Xiaomi, Huawei, Samsung
-2. **Background location**: Impostazioni → App → where → Permessi → Posizione → "Consenti sempre"
-   - Obbligatorio Android 10+
+| 12+ | Indicatore GPS status bar — NON scatta con PendingIntent ✅ |
+| 12+ | `PendingIntent.FLAG_MUTABLE` obbligatorio per FusedLocation |
+| 13+ | `LOCKED_BOOT_COMPLETED` nel manifest |
 
 ---
 
@@ -203,45 +206,41 @@ app/src/main/java/com/Dev/where/
 
 | OEM | Rischio | Azione richiesta |
 |---|---|---|
-| Xiaomi / MIUI | Alto | Autostart manuale + battery unrestricted + MIUI optimization OFF |
-| Huawei / EMUI | Molto alto | App launch on startup manuale, kill-list aggressiva |
-| Samsung / OneUI | Medio | Battery "Unrestricted" in background usage |
-| Oppo / ColorOS | Medio | Autostart + battery saver off |
-| Stock Android (Pixel) | Basso | Solo battery optimization standard |
-
-Non bypassabile via codice — configurazione manuale post-installazione.
+| Xiaomi / MIUI | Alto | Autostart manuale + battery unrestricted |
+| Huawei / EMUI | Molto alto | App launch on startup manuale |
+| Samsung / OneUI | Medio | Battery "Unrestricted" |
+| Oppo / ColorOS | Medio | Attività in background ON (confermato funzionante) |
+| Stock Android | Basso | Solo battery optimization standard |
 
 ---
 
-## Backend — Google Apps Script
+## Configurazione manuale dispositivo (una tantum — non bypassabile)
 
-- **doPost**: riceve `{lat, lng, accuracy, timestamp, deviceId}` dal tracker
-- **doGet**: serve i dati al viewer
-- **Storage**: Google Sheets — una sheet per deviceId
-- **Deploy**: Web App pubblica (chiunque può chiamarla)
-- URL endpoint: da configurare in `secrets.properties` (mai in repo)
+1. **Battery optimization OFF**: Impostazioni → App → where → Batteria → "Non ottimizzare"
+2. **Background location**: Impostazioni → App → where → Permessi → Posizione → "Consenti sempre"
+3. **Attività in background ON**: Impostazioni → App → where → "Consenti attività in background"
 
 ---
 
-## App Viewer — decisione aperta
+## Prossimi step
 
-Opzioni ancora valutate:
-- App Android dedicata (secondo progetto separato)
-- Browser su Google Sheets direttamente
-
----
-
-## Roadmap step proto-app
-
-| Step | Descrizione | Stato |
+| Step | Descrizione | Priorità |
 |---|---|---|
-| STEP 1 | Progetto base + permessi + UI shell | ✅ Completato |
-| STEP 2 | ForegroundService + FusedLocation callback → coordinate a schermo | ✅ Completato |
-| STEP 3 | Google Apps Script (doPost) → test con curl | ⬜ Prossimo |
-| STEP 4 | OkHttp POST da app → coordinate su Google Sheet | ⬜ |
-| STEP 5 | Room DB → cache offline + retry su rete | ⬜ |
-| STEP 6 | Switch a PendingIntent → rimuovi ForegroundService | ⬜ |
-| STEP 7 | Strip UI → manifest silenzioso → test BOOT_COMPLETED | ⬜ |
+| STEP 8 | Rimozione icona — elimina StartupActivity + intent-filter dal manifest | Alta |
+| STEP 9 | Intervallo produzione: 15min / 100m displacement | Alta |
+| STEP 10 | Test survival OEM: Xiaomi, Samsung, Huawei | Alta |
+| STEP 11 | `secrets.properties` — URL endpoint fuori dal codice | Media |
+| STEP 12 | `deviceId` configurabile — non hardcoded | Media |
+| STEP 13 | Progetto `where-viewer` — mappa + settings | Futuro |
+
+---
+
+## Sistema completo — due progetti separati
+
+| Progetto | Nome | Package | Stato |
+|---|---|---|---|
+| Tracker | `where` | `com.dev.where` | ✅ v1.0.0 completato |
+| Viewer | `where-viewer` | `com.dev.viewer` | ⬜ da iniziare |
 
 ---
 
@@ -251,9 +250,9 @@ Opzioni ancora valutate:
 2. Per ogni bug: tracciare il percorso completo input → stato → funzione → output
 3. Ogni modifica specifica: file esatto + riga + before + after
 4. Patch applicate **solo al file sorgente compilato**, mai a copie di output
-5. Trattare le cause, non i sintomi — no workaround con annotazioni
+5. Trattare le cause, non i sintomi
 6. Sviluppo incrementale: implementa → testa su device reale → conferma → procedi
 
 ---
 
-*Sostituisce integralmente: `GPS_Tracker_Contesto_Progetto.md`*
+*Sostituisce integralmente tutte le versioni precedenti (proto-app, GPS_Tracker_Contesto_Progetto.md)*
