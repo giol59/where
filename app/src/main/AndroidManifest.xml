@@ -18,12 +18,7 @@
         <activity
             android:name=".StartupActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.NoDisplay">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@android:style/Theme.NoDisplay" />
 
         <receiver
             android:name=".receiver.BootReceiver"
