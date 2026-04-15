@@ -1,6 +1,7 @@
 package com.dev.where.tracker
 
 import android.content.Context
+import android.location.Location
 import android.util.Log
 import com.dev.where.db.GpsPoint
 import com.dev.where.db.WhereDatabase
@@ -21,14 +22,19 @@ object SheetsSender {
     private val JSON_TYPE = "application/json".toMediaType()
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    fun saveAndSend(context: Context, lat: Double, lng: Double, accuracy: Float, timestamp: Long) {
+    fun saveAndSend(context: Context, location: Location, satellites: Int) {
         scope.launch {
             val dao = WhereDatabase.getInstance(context).gpsPointDao()
             val id = dao.insert(
-                GpsPoint(lat = lat, lng = lng, accuracy = accuracy, timestamp = timestamp)
+                GpsPoint(
+                    lat = location.latitude,
+                    lng = location.longitude,
+                    accuracy = location.accuracy,
+                    timestamp = location.time
+                )
             )
             Log.d(TAG, "Salvato su Room → id=$id")
-            sendPoint(context, id, lat, lng, accuracy, timestamp)
+            sendPoint(context, id, location, satellites)
         }
     }
 
@@ -38,13 +44,49 @@ object SheetsSender {
             val pending = dao.getPending()
             Log.d(TAG, "Retry: ${pending.size} punti pending")
             pending.forEach { point ->
-                sendPoint(context, point.id, point.lat, point.lng, point.accuracy, point.timestamp)
+                val fakeLocation = Location("retry").apply {
+                    latitude = point.lat
+                    longitude = point.lng
+                    accuracy = point.accuracy
+                    time = point.timestamp
+                }
+                sendPoint(context, point.id, fakeLocation, 0)
             }
         }
     }
 
-    private fun sendPoint(context: Context, id: Long, lat: Double, lng: Double, accuracy: Float, timestamp: Long) {
-        val body = """{"deviceId":"where_device_01","lat":$lat,"lng":$lng,"accuracy":$accuracy,"timestamp":"${java.util.Date(timestamp).toInstant()}"}"""
+    private fun sendPoint(context: Context, id: Long, location: Location, satellites: Int) {
+        val deviceId = DeviceInfo.getDeviceId(context)
+        val deviceName = DeviceInfo.getDeviceName()
+        val battery = DeviceInfo.getBatteryLevel(context)
+        val isCharging = DeviceInfo.isCharging(context)
+        val isOnCall = DeviceInfo.isOnCall(context)
+        val isScreenOn = DeviceInfo.isScreenOn(context)
+        val networkType = DeviceInfo.getNetworkType(context)
+        val isTyping = TypingAccessibilityService.checkAndResetTyping()
+        val activeApp = TypingAccessibilityService.activeApp
+
+        val body = """
+            {
+              "deviceId": "$deviceId",
+              "deviceName": "$deviceName",
+              "lat": ${location.latitude},
+              "lng": ${location.longitude},
+              "accuracy": ${location.accuracy},
+              "speed": ${location.speed},
+              "altitude": ${location.altitude},
+              "bearing": ${location.bearing},
+              "satellites": $satellites,
+              "battery": $battery,
+              "isCharging": $isCharging,
+              "isOnCall": $isOnCall,
+              "isScreenOn": $isScreenOn,
+              "networkType": "$networkType",
+              "isTyping": $isTyping,
+              "activeApp": "$activeApp",
+              "timestamp": "${java.util.Date(location.time).toInstant()}"
+            }
+        """.trimIndent()
 
         val request = Request.Builder()
             .url(ENDPOINT)

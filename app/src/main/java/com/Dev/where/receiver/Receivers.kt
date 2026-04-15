@@ -26,13 +26,8 @@ class LocationReceiver : BroadcastReceiver() {
 
         Log.d("LocationReceiver", "GPS → lat=${location.latitude} lng=${location.longitude}")
 
-        SheetsSender.saveAndSend(
-            context,
-            location.latitude,
-            location.longitude,
-            location.accuracy,
-            location.time
-        )
+        // satellites non disponibile via PendingIntent — passa 0
+        SheetsSender.saveAndSend(context, location, satellites = 0)
     }
 }
 

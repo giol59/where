@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">where</string>
+    <string name="accessibility_description">Rileva digitazione attiva</string>
 </resources>
