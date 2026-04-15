@@ -25,14 +25,6 @@ class LocationReceiver : BroadcastReceiver() {
 
         Log.d("LocationReceiver", "GPS → lat=${location.latitude} lng=${location.longitude}")
 
-        val broadcast = Intent("com.dev.where.LOCATION_UPDATE").apply {
-            putExtra("lat",      location.latitude)
-            putExtra("lng",      location.longitude)
-            putExtra("accuracy", location.accuracy)
-            putExtra("time",     location.time)
-        }
-        context.sendBroadcast(broadcast)
-
         SheetsSender.saveAndSend(
             context,
             location.latitude,
@@ -54,7 +46,9 @@ fun registerLocationUpdates(context: Context) {
         .setWaitForAccurateLocation(false)
         .build()
 
-    val intent = Intent(context, LocationReceiver::class.java)
+    val intent = Intent("com.dev.where.LOCATION_UPDATE").apply {
+        setPackage(context.packageName)
+    }
     val pendingIntent = PendingIntent.getBroadcast(
         context,
         0,
@@ -68,7 +62,8 @@ fun registerLocationUpdates(context: Context) {
                 Log.d("BootReceiver", "PendingIntent registrato OK")
             }
             .addOnFailureListener { e ->
-                Log.e("BootReceiver", "Registrazione fallita: ${e.message}")
+                Log.e("BootReceiver", "Registrazione fallita: ${e.message} cause=${e.cause}")
+                e.printStackTrace()
             }
     } catch (e: SecurityException) {
         Log.e("BootReceiver", "Permesso GPS mancante: ${e.message}")
