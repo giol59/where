@@ -1,10 +1,11 @@
-package com.dev.where.tracker
+package com.Dev.where.tracker
 
 import android.content.Context
 import android.location.Location
 import android.util.Log
 import com.dev.where.db.GpsPoint
 import com.dev.where.db.WhereDatabase
+import com.dev.where.tracker.TypingAccessibilityService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

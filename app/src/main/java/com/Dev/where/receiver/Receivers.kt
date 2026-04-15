@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.dev.where.LocationForegroundService
-import com.dev.where.tracker.SheetsSender
+import com.Dev.where.tracker.SheetsSender
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
@@ -14,6 +14,9 @@ import com.google.android.gms.location.Priority
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != Intent.ACTION_BOOT_COMPLETED) {
+            return
+        }
         Log.d("BootReceiver", "BOOT_COMPLETED ricevuto — avvio ForegroundService")
         LocationForegroundService.start(context)
     }
