@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.dev.where.LocationForegroundService
 import com.dev.where.tracker.SheetsSender
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -13,8 +14,8 @@ import com.google.android.gms.location.Priority
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        Log.d("BootReceiver", "BOOT_COMPLETED ricevuto")
-        registerLocationUpdates(context)
+        Log.d("BootReceiver", "BOOT_COMPLETED ricevuto — avvio ForegroundService")
+        LocationForegroundService.start(context)
     }
 }
 
@@ -62,8 +63,7 @@ fun registerLocationUpdates(context: Context) {
                 Log.d("BootReceiver", "PendingIntent registrato OK")
             }
             .addOnFailureListener { e ->
-                Log.e("BootReceiver", "Registrazione fallita: ${e.message} cause=${e.cause}")
-                e.printStackTrace()
+                Log.e("BootReceiver", "Registrazione fallita: ${e.message}")
             }
     } catch (e: SecurityException) {
         Log.e("BootReceiver", "Permesso GPS mancante: ${e.message}")
