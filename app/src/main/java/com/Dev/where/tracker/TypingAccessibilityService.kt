@@ -1,4 +1,4 @@
-package com.dev.where.tracker
+package com.Dev.where.tracker
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo

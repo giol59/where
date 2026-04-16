@@ -1,4 +1,4 @@
-package com.dev.where
+package com.Dev.where
 
 import android.Manifest
 import android.content.Intent
@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
@@ -38,10 +39,16 @@ class StartupActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            startServiceAndFinish()
+            checkBatteryOptimization()
         } else {
             showBackgroundLocationDialog()
         }
+    }
+
+    private val requestBatteryOptimization = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        startServiceAndFinish()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -90,8 +97,20 @@ class StartupActivity : AppCompatActivity() {
             ) {
                 showBackgroundLocationDialog()
             } else {
-                startServiceAndFinish()
+                checkBatteryOptimization()
             }
+        } else {
+            checkBatteryOptimization()
+        }
+    }
+
+    private fun checkBatteryOptimization() {
+        val pm = getSystemService(PowerManager::class.java)
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = Uri.fromParts("package", packageName, null)
+            }
+            requestBatteryOptimization.launch(intent)
         } else {
             startServiceAndFinish()
         }

@@ -1,4 +1,4 @@
-package com.dev.where.db
+package com.Dev.where.db
 
 import android.content.Context
 import androidx.room.Database

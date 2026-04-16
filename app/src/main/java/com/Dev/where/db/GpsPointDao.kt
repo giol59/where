@@ -1,4 +1,4 @@
-package com.dev.where.db
+package com.Dev.where.db
 
 import androidx.room.*
 

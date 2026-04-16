@@ -1,4 +1,4 @@
-package com.dev.where.util
+package com.Dev.where.util
 
 import android.Manifest
 import android.content.Context

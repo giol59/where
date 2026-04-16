@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.dev.where"
+    namespace = "com.Dev.where"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.dev.where"
+        applicationId = "com.Dev.where"
         minSdk = 26
         targetSdk = 35
         versionCode = 2

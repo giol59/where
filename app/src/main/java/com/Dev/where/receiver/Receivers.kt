@@ -1,11 +1,11 @@
-package com.dev.where.receiver
+package com.Dev.where.receiver
 
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.dev.where.LocationForegroundService
+import com.Dev.where.LocationForegroundService
 import com.Dev.where.tracker.SheetsSender
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -45,7 +45,7 @@ fun registerLocationUpdates(context: Context) {
         .setWaitForAccurateLocation(false)
         .build()
 
-    val intent = Intent("com.dev.where.LOCATION_UPDATE").apply {
+    val intent = Intent("com.Dev.where.LOCATION_UPDATE").apply {
         setPackage(context.packageName)
     }
     val pendingIntent = PendingIntent.getBroadcast(

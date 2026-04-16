@@ -1,4 +1,4 @@
-package com.dev.where
+package com.Dev.where
 
 import android.app.Application
 import android.util.Log

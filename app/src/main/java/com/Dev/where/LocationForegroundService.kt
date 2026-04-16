@@ -1,4 +1,4 @@
-package com.dev.where
+package com.Dev.where
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -9,7 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
-import com.dev.where.receiver.registerLocationUpdates
+import com.Dev.where.receiver.registerLocationUpdates
 
 class LocationForegroundService : Service() {
 
